@@ -2,9 +2,16 @@ import tkinter as tk
 import tkinter.filedialog as filedialog
 from tkinter import ttk
 from collections import deque
+from multiprocessing import Process, Queue, freeze_support
+from threading import Thread
 #from tqdm import tqdm
 import os
+import signal
 
+multi_queue = Queue()
+
+DELAY_PROGRESS = 50
+DELAY_CHECK_END_PROCESS = 100
 class Diro:
     def __init__(self,name,size):
         self.name = os.path.normpath(name)
@@ -43,19 +50,24 @@ class Diro:
         return shownsize
 
 
-all_paths = dict()
 
 
-def check_size(directory=".", is_super_path=False):
+
+def check_size(queue, directory=".", is_super_path=False):
+    all_paths = dict()
     #if directory in all_paths.keys():
     #    return all_paths[directory]
-    this_diro = Diro(directory,0)
-    total_size = 0
-    for thisdir, thissubdirectories, thisfilenames in os.walk(directory):
+    #this_diro = Diro(directory,0)
+    root_diro = None
+    
+    for thisdir, thissubdirectories, thisfilenames in os.walk(directory,topdown=False):
+        total_size = 0
+        this_diro = Diro(thisdir,0)
+        #multi_queue.put(this_diro.name)
         
         for d in thissubdirectories:
-            if is_super_path: print(d)
-            newsubdir = check_size(os.path.join(directory,d))
+            #if is_super_path: print(d)
+            newsubdir = all_paths[str(os.path.join(thisdir,d))]
             total_size += newsubdir.size
             this_diro.subdirectories.append(newsubdir)
 
@@ -63,18 +75,25 @@ def check_size(directory=".", is_super_path=False):
             try:
                 
                 fp = os.path.join(thisdir,f)
-                if is_super_path: print(fp)
+                #if is_super_path: print(fp)
                 filesize = os.path.getsize(fp)
                 total_size += filesize
                 filediro = Diro(fp,filesize)
                 this_diro.subdirectories.append(filediro)
             except:
+                print(f"Couldn't open file {fp}")
                 pass
-        break
-    this_diro.size = total_size
-    all_paths[directory] = this_diro
-    this_diro.subdirectories.sort(key= lambda x: x.size, reverse=True)
-    return this_diro
+        
+        this_diro.size = total_size
+        all_paths[thisdir] = this_diro
+        this_diro.subdirectories.sort(key= lambda x: x.size, reverse=True)
+        #print(f'processed {this_diro.name}')
+        root_diro = this_diro
+    #print('putting info in queue')
+    queue.put(root_diro)
+    #print('put info in queue')
+    return
+    #return root_diro
 
 class TreeApp(ttk.Frame):
     def __init__(self, main_window):
@@ -86,17 +105,20 @@ class TreeApp(ttk.Frame):
         self.place(relx=0.05,rely=0.05,relheight=0.9,relwidth=0.9)
         
         self.treeview = ttk.Treeview(self, columns=["Size"])
-        self.treeview.heading("#0", text="Archivo")
-        self.treeview.heading("#1", text="Tamaño")
+        self.treeview.heading("#0", text="File")
+        self.treeview.heading("#1", text="Size")
         self.treeview.column("Size", anchor=tk.E)
         #self.treeview.grid(row=0,column=0,sticky='NSEW')
         self.treeview.place(relx=0,rely=0,relheight=0.8,relwidth=1)
         #self.treeview.pack(fill="both",expand=True)
         self.parent_node = None
         
-        self.select_button = ttk.Button(self, text="Select", command=lambda : self.select_parent_node())
+        self.select_button = ttk.Button(self, text="Select directory", command=lambda : self.select_parent_node())
         self.select_button.place(relx=0.8,rely=0.9,relheight=0.1,relwidth=0.2)
         #self.select_button.pack(expand=True,fill='x')
+        
+        self.progress = ttk.Progressbar(self,mode='indeterminate')
+        self.progress.place(relx=0,rely=0.9,relheight=0.1,relwidth=0.6)
         
 
         #self.grid(row=0,column=0,sticky='NSEW')
@@ -123,10 +145,37 @@ class TreeApp(ttk.Frame):
 
     def select_parent_node(self):
         directory = filedialog.askdirectory()
-        diro = check_size(directory,True)
-        self.set_parent_node(diro)
+        if directory == '': return
+        self.after(DELAY_CHECK_END_PROCESS,self.checkProcessFinish)
+        #diro = check_size(directory,True)
+        self.select_button.config(state=tk.DISABLED)
+        self.p1 = Process(target=check_size, args=(multi_queue, directory, True))
+        self.progress.start(DELAY_PROGRESS)
+        self.p1.start()
+        
+        
+    def checkProcessFinish(self):
+        #print('getting diro')
+        #diro = multi_queue.get()
+        
+        #print('got diro')
+        if multi_queue.empty():
+            #print('not finished')
+            self.after(DELAY_CHECK_END_PROCESS,self.checkProcessFinish)
+        else:
+            #print('finished')
+            diro = multi_queue.get(0)
+            self.set_parent_node(diro)
+            self.progress.stop()
+            self.select_button.config(state=tk.NORMAL)
+            
+
+    #def refreshUI(self):
+    #    if multi_queue.
+        
 
 if __name__ == '__main__':
+    freeze_support()
     root = tk.Tk()
     directory = "."
     app = TreeApp(root)
