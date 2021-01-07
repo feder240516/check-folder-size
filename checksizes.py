@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import tkinter as tk
 import tkinter.filedialog as filedialog
 from tkinter import ttk
@@ -51,25 +52,29 @@ class Diro:
 
 
 
-
+def normalize_directory(directory: str):
+    return os.path.expanduser(directory)
 
 def check_size(queue, directory=".", is_super_path=False):
+    directory = normalize_directory(directory)
     all_paths = dict()
-    #if directory in all_paths.keys():
-    #    return all_paths[directory]
-    #this_diro = Diro(directory,0)
     root_diro = None
     
     for thisdir, thissubdirectories, thisfilenames in os.walk(directory,topdown=False):
+        # print(thisdir)
         total_size = 0
         this_diro = Diro(thisdir,0)
         #multi_queue.put(this_diro.name)
         
         for d in thissubdirectories:
             #if is_super_path: print(d)
-            newsubdir = all_paths[str(os.path.join(thisdir,d))]
-            total_size += newsubdir.size
-            this_diro.subdirectories.append(newsubdir)
+            subdir_fullpath = str(os.path.join(thisdir,d))
+            if subdir_fullpath in all_paths:
+                newsubdir = all_paths[subdir_fullpath]
+                total_size += newsubdir.size
+                this_diro.subdirectories.append(newsubdir)
+            else:
+                print(subdir_fullpath + ' is either a symlink or you don\'t have read permissions for this directory. Skipped.')
 
         for f in thisfilenames:
             try:
@@ -89,11 +94,8 @@ def check_size(queue, directory=".", is_super_path=False):
         this_diro.subdirectories.sort(key= lambda x: x.size, reverse=True)
         #print(f'processed {this_diro.name}')
         root_diro = this_diro
-    #print('putting info in queue')
     queue.put(root_diro)
-    #print('put info in queue')
     return
-    #return root_diro
 
 class TreeApp(ttk.Frame):
     def __init__(self, main_window):
@@ -129,6 +131,11 @@ class TreeApp(ttk.Frame):
         
 
     def set_parent_node(self, diro: Diro):
+        if diro is None:
+            print('ERROR: Required argument diro is None. Ensure you have enough permissions for reading selected directory')
+            if self.parent_node != None:
+                self.treeview.delete(self.parent_node)
+            return
         if self.parent_node != None:
             self.treeview.delete(self.parent_node)
         self.parent_node = self.treeview.insert("", tk.END, text=diro.last_path, values=[diro.norm_size])
