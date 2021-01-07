@@ -61,13 +61,10 @@ def check_size(queue, directory=".", is_super_path=False):
     root_diro = None
     
     for thisdir, thissubdirectories, thisfilenames in os.walk(directory,topdown=False):
-        # print(thisdir)
         total_size = 0
         this_diro = Diro(thisdir,0)
-        #multi_queue.put(this_diro.name)
         
         for d in thissubdirectories:
-            #if is_super_path: print(d)
             subdir_fullpath = str(os.path.join(thisdir,d))
             if subdir_fullpath in all_paths:
                 newsubdir = all_paths[subdir_fullpath]
@@ -80,7 +77,6 @@ def check_size(queue, directory=".", is_super_path=False):
             try:
                 
                 fp = os.path.join(thisdir,f)
-                #if is_super_path: print(fp)
                 filesize = os.path.getsize(fp)
                 total_size += filesize
                 filediro = Diro(fp,filesize)
@@ -92,7 +88,6 @@ def check_size(queue, directory=".", is_super_path=False):
         this_diro.size = total_size
         all_paths[thisdir] = this_diro
         this_diro.subdirectories.sort(key= lambda x: x.size, reverse=True)
-        #print(f'processed {this_diro.name}')
         root_diro = this_diro
     queue.put(root_diro)
     return
@@ -110,25 +105,14 @@ class TreeApp(ttk.Frame):
         self.treeview.heading("#0", text="File")
         self.treeview.heading("#1", text="Size")
         self.treeview.column("Size", anchor=tk.E)
-        #self.treeview.grid(row=0,column=0,sticky='NSEW')
         self.treeview.place(relx=0,rely=0,relheight=0.8,relwidth=1)
-        #self.treeview.pack(fill="both",expand=True)
         self.parent_node = None
         
         self.select_button = ttk.Button(self, text="Select directory", command=lambda : self.select_parent_node())
         self.select_button.place(relx=0.8,rely=0.9,relheight=0.1,relwidth=0.2)
-        #self.select_button.pack(expand=True,fill='x')
         
         self.progress = ttk.Progressbar(self,mode='indeterminate')
         self.progress.place(relx=0,rely=0.9,relheight=0.1,relwidth=0.6)
-        
-
-        #self.grid(row=0,column=0,sticky='NSEW')
-        
-
-        
-        #self.pack(fill="both",expand=True)
-        
 
     def set_parent_node(self, diro: Diro):
         if diro is None:
@@ -154,7 +138,6 @@ class TreeApp(ttk.Frame):
         directory = filedialog.askdirectory()
         if directory == '': return
         self.after(DELAY_CHECK_END_PROCESS,self.checkProcessFinish)
-        #diro = check_size(directory,True)
         self.select_button.config(state=tk.DISABLED)
         self.p1 = Process(target=check_size, args=(multi_queue, directory, True))
         self.progress.start(DELAY_PROGRESS)
@@ -162,24 +145,13 @@ class TreeApp(ttk.Frame):
         
         
     def checkProcessFinish(self):
-        #print('getting diro')
-        #diro = multi_queue.get()
-        
-        #print('got diro')
         if multi_queue.empty():
-            #print('not finished')
             self.after(DELAY_CHECK_END_PROCESS,self.checkProcessFinish)
         else:
-            #print('finished')
             diro = multi_queue.get(0)
             self.set_parent_node(diro)
             self.progress.stop()
             self.select_button.config(state=tk.NORMAL)
-            
-
-    #def refreshUI(self):
-    #    if multi_queue.
-        
 
 if __name__ == '__main__':
     freeze_support()
@@ -187,38 +159,3 @@ if __name__ == '__main__':
     directory = "."
     app = TreeApp(root)
     app.mainloop()
-    """
-    print("Bienvenido al programa de segmentación del tamaño de las carpetas")
-    print("Aparecerá una ventana para que selecciones la carpeta a analizar")
-    root = tk.Tk()
-    root.withdraw()
-    while True:
-        file = filedialog.askdirectory()
-        print (file)
-        dires = []
-        totallysize = 0
-        for subdir, dirnames, filings in os.walk(file):
-            numelements = len(dirnames) + len(filings)
-            numdirs = len(dirnames)
-            for i, dirname in enumerate(dirnames):
-                dires.append(check_size(os.path.join(subdir,dirname)))
-                totallysize += dires[i]
-                print(i + 1, "elementos escaneados de", numelements)
-            for i, subfile in enumerate(filings):
-                try:
-                    filesize = os.path.getsize(os.path.join(subdir,subfile))
-                    totallysize += filesize
-                    dires.append(Diro(os.path.join(subdir,subfile),filesize))
-                    print(numdirs + i, "elementos escaneados de", numelements)
-                except FileNotFoundError:
-                    pass
-            break
-
-        dires.sort(key=lambda x: x.size, reverse=True)
-        for i in dires:
-            print(i)
-
-        print("Tamaño total de este directorio:\n" + str(Diro(file, totallysize)))
-        input("Presione enter para intentar otro directorio\n")
-        all_paths.clear()
-    """
