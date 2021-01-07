@@ -18,6 +18,7 @@ If you want to check admin/superuser/root/protected folders, ensure you have eno
 Made in Python 3.8.5.
 Tested on Windows 10.
 Tested on Ubuntu 20.04, however, it will only work in GUI environments.
+Tested on WSL 2 using xrdp and remote desktop tool to have GUI desktop.
 
 TO-DO tasks:
  - [ ] Support for symlinks, as it only works with directories.
