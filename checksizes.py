@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+
+#author: Jhon Rayo
 import tkinter as tk
 import tkinter.filedialog as filedialog
 from tkinter import ttk
